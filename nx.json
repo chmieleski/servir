@@ -112,7 +112,8 @@
   "targetDefaults": {
     "@nx/expo:build": {
       "options": {
-        "interactive": false
+        "interactive": false,
+        "platform": "android"
       }
     },
     "test": {
