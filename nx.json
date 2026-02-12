@@ -110,6 +110,11 @@
     }
   },
   "targetDefaults": {
+    "@nx/expo:build": {
+      "options": {
+        "interactive": false
+      }
+    },
     "test": {
       "dependsOn": ["^build"]
     }

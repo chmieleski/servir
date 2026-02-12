@@ -9,6 +9,8 @@ on:
 jobs:
   affected:
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,6 +29,7 @@ jobs:
           cache: pnpm
 
       - name: Install EAS CLI
+        if: ${{ env.EXPO_TOKEN != '' }}
         run: npm install --global eas-cli
 
       - name: Install dependencies
@@ -35,5 +38,20 @@ jobs:
       - name: Set Nx SHAs
         uses: nrwl/nx-set-shas@v4
 
+      - name: Check Expo auth context
+        run: |
+          if [ -n "${EXPO_TOKEN:-}" ]; then
+            echo "EXPO_TOKEN available."
+          else
+            echo "EXPO_TOKEN unavailable for this run."
+            echo "Fork PRs and Dependabot PRs do not receive repository secrets."
+          fi
+
       - name: Lint, test, build affected projects
-        run: pnpm nx affected -t lint test build --parallel=3
+        run: |
+          if [ -n "${EXPO_TOKEN:-}" ]; then
+            pnpm nx affected -t lint test build --parallel=3
+          else
+            echo "EXPO_TOKEN not set. Skipping @servir/expo in affected builds."
+            pnpm nx affected -t lint test build --exclude=@servir/expo --parallel=3
+          fi
