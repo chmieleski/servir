@@ -1,0 +1,14 @@
+{
+  "name": "@servir/web-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "tags": [
+      "scope:web",
+      "type:e2e"
+    ],
+    "implicitDependencies": [
+      "@servir/web"
+    ]
+  }
+}

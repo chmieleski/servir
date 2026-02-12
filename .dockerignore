@@ -1,0 +1,10 @@
+.git
+.github
+.nx/cache
+.nx/workspace-data
+dist
+node_modules
+coverage
+test-output
+tmp
+out-tsc

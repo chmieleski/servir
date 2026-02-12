@@ -1,0 +1,40 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/web-e2e"
+    },
+    {
+      "path": "./apps/web"
+    },
+    {
+      "path": "./apps/api-e2e"
+    },
+    {
+      "path": "./apps/api"
+    },
+    {
+      "path": "./libs/shared/contracts"
+    },
+    {
+      "path": "./libs/shared/config"
+    },
+    {
+      "path": "./libs/server/core"
+    },
+    {
+      "path": "./libs/server/feature-health"
+    },
+    {
+      "path": "./libs/web/ui"
+    },
+    {
+      "path": "./libs/web/feature-home"
+    },
+    {
+      "path": "./apps/expo"
+    }
+  ]
+}

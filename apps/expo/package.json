@@ -1,0 +1,32 @@
+{
+  "name": "@servir/expo",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "eas-build-post-install": "cd ../../ && node tools/scripts/eas-build-post-install.mjs . apps/expo"
+  },
+  "nx": {
+    "tags": [
+      "scope:web",
+      "type:app"
+    ]
+  },
+  "dependencies": {
+    "@servir/config": "workspace:*",
+    "@servir/contracts": "workspace:*",
+    "@expo/metro-config": "*",
+    "@testing-library/react-native": "*",
+    "expo": "*",
+    "expo-splash-screen": "*",
+    "expo-status-bar": "*",
+    "expo-system-ui": "*",
+    "jest-expo": "*",
+    "metro-config": "*",
+    "metro-resolver": "*",
+    "react": "*",
+    "react-native": "*",
+    "react-native-svg": "*",
+    "react-native-svg-transformer": "*",
+    "react-native-web": "*"
+  }
+}

@@ -1,0 +1,8 @@
+
+[7m[1m[36m NX [39m[22m[27m [1mGenerating @nx/workspace:ci-workflow[22m
+
+
+[7m[1m[31m NX [39m[22m[27m  [31mProperty 'ci' does not match the schema. 'skip,github' should be one of github,circleci,azure,bitbucket-pipelines,gitlab.[39m
+
+
+
