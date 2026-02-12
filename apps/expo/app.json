@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Expo",
-    "slug": "@servir/expo",
+    "slug": "servirexpo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -32,6 +32,12 @@
           "backgroundColor": "#ffffff"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "47e23653-80cb-4aef-9b16-6e8a70dd80ad"
+      }
+    },
+    "owner": "kokakola0012"
   }
 }
