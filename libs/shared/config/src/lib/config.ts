@@ -1,10 +1,25 @@
 import { z, ZodError } from 'zod';
 
+const EnvBooleanSchema = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+  z.union([z.boolean(), z.enum(['true', 'false', '1', '0'])]).transform((value) => {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    return value === 'true' || value === '1';
+  }),
+);
+
 export const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  HOST: z.string().trim().min(1).default('0.0.0.0'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   API_PREFIX: z.string().trim().min(1).default('api/v1'),
+  API_DOCS_ENABLED: EnvBooleanSchema.default(true),
   API_DOCS_PATH: z.string().trim().min(1).default('api/docs'),
+  CORS_ENABLED: EnvBooleanSchema.default(true),
+  CORS_ORIGIN: z.string().trim().min(1).default('*'),
   APP_VERSION: z.string().trim().min(1).default('0.0.0'),
   NEXT_PUBLIC_API_BASE_URL: z.string().url().default('http://localhost:3000/api/v1'),
   EXPO_PUBLIC_API_BASE_URL: z.string().url().default('http://localhost:3000/api/v1'),
