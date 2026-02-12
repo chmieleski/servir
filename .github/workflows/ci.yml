@@ -10,6 +10,7 @@ jobs:
   affected:
     runs-on: ubuntu-latest
     env:
+      NX_CLOUD_ACCESS_TOKEN: 'MWE1ZGVlMjUtOGE3OC00MzMxLWFiZDMtMzQzOGRlMDk1M2NkfHJlYWQ='
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - name: Checkout
