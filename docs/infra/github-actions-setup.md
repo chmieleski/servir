@@ -1,6 +1,6 @@
 # Guia de Configuracao do GitHub Actions + AWS (API)
 
-Este guia descreve como configurar o deploy do `apps/api` com Terraform + GitHub Actions, incluindo OIDC, `secrets/variables`, Infracost e DNS.
+Este guia descreve como configurar o deploy do `apps/api` com Terraform + GitHub Actions, incluindo OIDC, `secrets/variables` e DNS.
 
 ## 1. Pre-requisitos
 
@@ -11,7 +11,7 @@ Este guia descreve como configurar o deploy do `apps/api` com Terraform + GitHub
 
 ## 2. Fluxo (resumo)
 
-1. PR com alteracoes de infra/API: roda `Infra Plan` (+ Infracost se chave configurada).
+1. PR com alteracoes de infra/API: o workflow/plataforma de IaC publica comentario de plano no PR.
 2. Push na `main`: roda `CI`.
 3. `Deploy API` dispara via `workflow_run` apenas quando `CI` conclui com `success`.
 4. `Deploy API` valida escopo de mudancas:
@@ -152,17 +152,16 @@ Caminho no GitHub: `Settings > Secrets and variables > Actions`.
 
 | Nome                  | Tipo     | Obrigatorio       | Usado em                           | Como obter                                                                  |
 | --------------------- | -------- | ----------------- | ---------------------------------- | --------------------------------------------------------------------------- |
-| `AWS_ROLE_ARN`        | Secret   | Sim               | `infra-plan.yml`, `deploy-api.yml` | ARN da role IAM criada na secao 5.                                          |
-| `INFRACOST_API_KEY`   | Secret   | Sim (recomendado) | `infra-plan.yml`                   | Infracost dashboard -> API keys -> gerar chave.                             |
-| `TF_STATE_BUCKET`     | Variable | Sim               | `infra-plan.yml`, `deploy-api.yml` | Output `state_bucket_name` do bootstrap Terraform.                          |
-| `TF_STATE_LOCK_TABLE` | Variable | Sim               | `infra-plan.yml`, `deploy-api.yml` | Output `lock_table_name` do bootstrap Terraform.                            |
-| `API_DOMAIN`          | Variable | Sim               | `infra-plan.yml`, `deploy-api.yml` | Subdominio publico da API (ex.: `api.servir.app`).                          |
-| `LETSENCRYPT_EMAIL`   | Variable | Sim               | `infra-plan.yml`, `deploy-api.yml` | Email operacional para emissao/renovacao TLS.                               |
-| `API_CORS_ORIGIN`     | Variable | Sim               | `infra-plan.yml`, `deploy-api.yml` | Origens permitidas, ex.: `https://servir.app,https://www.servir.app`.       |
-| `TF_STATE_KEY`        | Variable | Nao               | `infra-plan.yml`, `deploy-api.yml` | Defina para customizar path do state; default `api/prod/terraform.tfstate`. |
-| `API_PREFIX`          | Variable | Nao               | `infra-plan.yml`, `deploy-api.yml` | Deixe vazio para servir na raiz do subdominio.                              |
-| `API_DOCS_ENABLED`    | Variable | Nao               | `infra-plan.yml`, `deploy-api.yml` | Default `true`.                                                             |
-| `API_DOCS_PATH`       | Variable | Nao               | `infra-plan.yml`, `deploy-api.yml` | Default `docs` (com rotas na raiz).                                         |
+| `AWS_ROLE_ARN`        | Secret   | Sim               | `deploy-api.yml` | ARN da role IAM criada na secao 5.                                |
+| `TF_STATE_BUCKET`     | Variable | Sim               | `deploy-api.yml` | Output `state_bucket_name` do bootstrap Terraform.                |
+| `TF_STATE_LOCK_TABLE` | Variable | Sim               | `deploy-api.yml` | Output `lock_table_name` do bootstrap Terraform.                  |
+| `API_DOMAIN`          | Variable | Sim               | `deploy-api.yml` | Subdominio publico da API (ex.: `api.servir.app`).                |
+| `LETSENCRYPT_EMAIL`   | Variable | Sim               | `deploy-api.yml` | Email operacional para emissao/renovacao TLS.                     |
+| `API_CORS_ORIGIN`     | Variable | Sim               | `deploy-api.yml` | Origens permitidas, ex.: `https://servir.app,https://www.servir.app`. |
+| `TF_STATE_KEY`        | Variable | Nao               | `deploy-api.yml` | Defina para customizar path do state; default `api/prod/terraform.tfstate`. |
+| `API_PREFIX`          | Variable | Nao               | `deploy-api.yml` | Deixe vazio para servir na raiz do subdominio.                    |
+| `API_DOCS_ENABLED`    | Variable | Nao               | `deploy-api.yml` | Default `true`.                                                   |
+| `API_DOCS_PATH`       | Variable | Nao               | `deploy-api.yml` | Default `docs` (com rotas na raiz).                               |
 | `EXPO_TOKEN`          | Secret   | Nao               | `ci.yml`                           | Token da conta Expo (apenas se quiser validar `@servir/expo` no CI).        |
 
 ## 7. Como configurar DNS de `API_DOMAIN`
@@ -190,10 +189,30 @@ Para expor endpoints sem `/api/...`:
 
 ## 9. Checklist final de validacao
 
-1. PR alterando `infra/terraform/api/**` abre `Infra Plan` com `terraform fmt/validate/plan`.
-2. Comentario do Infracost aparece no PR (se `INFRACOST_API_KEY` configurado).
-3. Merge/push na `main` faz `CI` finalizar com `success`.
-4. `Deploy API` dispara por `workflow_run` e usa o `head_sha` do CI.
-5. Se nao houver mudanca de escopo API, deploy fica `skipped` sem erro.
-6. Se houver mudanca de escopo API, deploy executa `terraform apply`, build/push ARM64, SSM deploy e smoke test.
-7. Health check responde em `https://<API_DOMAIN>/<prefixo-ou-raiz>/health`.
+1. PR alterando `infra/terraform/api/**` recebe comentario de plano via fluxo de IaC configurado.
+2. Merge/push na `main` faz `CI` finalizar com `success`.
+3. `Deploy API` dispara por `workflow_run` e usa o `head_sha` do CI.
+4. Se nao houver mudanca de escopo API, deploy fica `skipped` sem erro.
+5. Se houver mudanca de escopo API, deploy executa `terraform apply`, build/push ARM64, SSM deploy e smoke test.
+6. Health check responde em `https://<API_DOMAIN>/<prefixo-ou-raiz>/health`.
+
+## 10. Excecao temporaria de policy no Infracost (EC2.9)
+
+Para o projeto `infra-terraform-api`, existe uma excecao temporaria e escopada para:
+
+- Policy: `EC2.9`
+- Recurso: `aws_instance.api`
+- Exception ID: `ec2-9-aws-instance-api-public-ip`
+- Expiracao: `2026-06-30`
+
+Arquivos de controle:
+
+- `infracost-policy-exceptions.yml`
+- `docs/infra/infracost-policy-exceptions.md`
+- `docs/infra/risk-tracker.md`
+
+Processo operacional:
+
+1. Quando a issue aparecer no PR, aplicar dismiss/snooze somente para essa policy/recurso.
+2. Incluir no motivo/comentario o `Exception ID` e o tracking issue `INFRA-EC2-9-PRIVATE-API-HOST`.
+3. Antes da expiracao, concluir a migracao para EC2 privado + ALB + NAT ou renovar formalmente a excecao com nova justificativa.

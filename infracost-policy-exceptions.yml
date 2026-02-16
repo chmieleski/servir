@@ -1,0 +1,22 @@
+version: 1
+
+exceptions:
+  - id: ec2-9-aws-instance-api-public-ip
+    tool: infracost
+    project: infra-terraform-api
+    policy_id: EC2.9
+    resource: aws_instance.api
+    owner: platform-engineering
+    status: accepted-temporary-risk
+    reason: >-
+      The API EC2 host is intentionally internet-facing in the current MVP architecture
+      (public subnet plus Elastic IP with Caddy terminating TLS). Changing this immediately
+      would break production ingress before the planned private-subnet plus ALB migration.
+    approved_on: 2026-02-16
+    expires_on: 2026-06-30
+    tracking:
+      system: github-issues
+      issue: INFRA-EC2-9-PRIVATE-API-HOST
+    remediation_target:
+      summary: Move API compute to private subnet behind ALB and remove public IPv4 from EC2.
+      status: planned
