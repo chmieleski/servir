@@ -105,6 +105,12 @@
         "options": {
           "passWithNoTests": true
         }
+      },
+      "docs-lint": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "pnpm docs:lint"
+        }
       }
     }
   },
@@ -122,6 +128,7 @@
     "@servir/data-access": "workspace:*",
     "@servir/feature-access": "workspace:*",
     "@servir/feature-billing": "workspace:*",
+    "@servir/feature-agent-planning": "workspace:*",
     "@servir/feature-health": "workspace:*",
     "nestjs-zod": "^5.1.1",
     "reflect-metadata": "^0.1.13",

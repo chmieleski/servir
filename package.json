@@ -10,7 +10,8 @@
     "build": "pnpm nx run-many -t build --all --parallel=3",
     "test": "pnpm nx run-many -t test --all --parallel=3",
     "lint": "pnpm nx run-many -t lint --all --parallel=3",
-    "check": "pnpm nx run-many -t lint,test,build --all --parallel=3"
+    "check": "pnpm nx run-many -t lint,test,build --all --parallel=3",
+    "docs:lint": "pnpm ts-node tools/docs-validate-risks.ts"
   },
   "private": true,
   "dependencies": {

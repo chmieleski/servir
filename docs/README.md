@@ -13,3 +13,9 @@
 - [GitHub Actions Setup](infra/github-actions-setup.md)
 - [Infracost Policy Exceptions](infra/infracost-policy-exceptions.md)
 - [Risk Tracker](infra/risk-tracker.md)
+
+## Agent / Planning
+
+- [Agent Risk Scan Guide](agent-risk-scan.md)
+- [Plan Template](templates/plan-template.md)
+- [Central Plan Risks](risks.md)
