@@ -14,7 +14,7 @@ This folder contains AWS Terraform stacks for the API MVP deployment.
 
 ## GitHub Actions Setup (Secrets/Variables/OIDC)
 
-For the complete CI/CD setup guide (GitHub OIDC, IAM role, repository secrets/variables, Infracost API key, DNS and validation checklist), see:
+For the complete CI/CD setup guide (GitHub OIDC, IAM role, repository secrets/variables, DNS and validation checklist), see:
 
 - `docs/infra/github-actions-setup.md`
 
@@ -65,7 +65,6 @@ The API stack writes database connection values into SSM Parameter Store:
 Repository secrets:
 
 - `AWS_ROLE_ARN`: IAM role ARN assumed by GitHub OIDC
-- `INFRACOST_API_KEY`: Infracost API key
 
 Repository variables:
 
