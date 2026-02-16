@@ -17,6 +17,8 @@ This folder contains AWS Terraform stacks for the API MVP deployment.
 For the complete CI/CD setup guide (GitHub OIDC, IAM role, repository secrets/variables, DNS and validation checklist), see:
 
 - `docs/infra/github-actions-setup.md`
+- `docs/infra/infracost-policy-exceptions.md`
+- `docs/infra/risk-tracker.md`
 
 ## 1) Bootstrap Remote State (one-time)
 
@@ -77,3 +79,9 @@ Repository variables:
 - `API_PREFIX` (optional, set empty to expose routes at subdomain root)
 - `API_DOCS_ENABLED` (optional, default `true`)
 - `API_DOCS_PATH` (optional, default `docs` when using root routes)
+
+## Infracost Policy Exceptions
+
+- Active exceptions are defined in `infracost-policy-exceptions.yml`.
+- Operational process and PR handling instructions are in `docs/infra/infracost-policy-exceptions.md`.
+- Accepted temporary risks and expiration tracking are in `docs/infra/risk-tracker.md`.

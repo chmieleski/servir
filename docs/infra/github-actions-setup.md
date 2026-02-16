@@ -195,3 +195,24 @@ Para expor endpoints sem `/api/...`:
 4. Se nao houver mudanca de escopo API, deploy fica `skipped` sem erro.
 5. Se houver mudanca de escopo API, deploy executa `terraform apply`, build/push ARM64, SSM deploy e smoke test.
 6. Health check responde em `https://<API_DOMAIN>/<prefixo-ou-raiz>/health`.
+
+## 10. Excecao temporaria de policy no Infracost (EC2.9)
+
+Para o projeto `infra-terraform-api`, existe uma excecao temporaria e escopada para:
+
+- Policy: `EC2.9`
+- Recurso: `aws_instance.api`
+- Exception ID: `ec2-9-aws-instance-api-public-ip`
+- Expiracao: `2026-06-30`
+
+Arquivos de controle:
+
+- `infracost-policy-exceptions.yml`
+- `docs/infra/infracost-policy-exceptions.md`
+- `docs/infra/risk-tracker.md`
+
+Processo operacional:
+
+1. Quando a issue aparecer no PR, aplicar dismiss/snooze somente para essa policy/recurso.
+2. Incluir no motivo/comentario o `Exception ID` e o tracking issue `INFRA-EC2-9-PRIVATE-API-HOST`.
+3. Antes da expiracao, concluir a migracao para EC2 privado + ALB + NAT ou renovar formalmente a excecao com nova justificativa.
