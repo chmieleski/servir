@@ -13,7 +13,7 @@ flowchart LR
   BillingSvc --> Prisma[PrismaService]
   Prisma --> DB[(Postgres)]
 
-  Client[API Client] --> API[@servir/api]
+  Client[API Client] --> API["`@servir/api`"]
   API --> Auth[ClerkAuthGuard]
   Auth --> BillingGuard[BillingGuard]
   BillingGuard --> Prisma
