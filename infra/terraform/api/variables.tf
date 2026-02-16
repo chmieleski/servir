@@ -55,7 +55,7 @@ variable "private_subnet_b_cidr" {
 variable "api_instance_type" {
   description = "EC2 instance type for the API host."
   type        = string
-  default     = "t4g.small"
+  default     = "t4g.nano"
 }
 
 variable "api_root_volume_size_gb" {
