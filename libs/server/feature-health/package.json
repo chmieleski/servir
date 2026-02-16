@@ -25,6 +25,7 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.3",
     "@servir/config": "workspace:*",
+    "@servir/core-auth": "workspace:*",
     "@servir/contracts": "workspace:*",
     "nestjs-zod": "^5.1.1",
     "tslib": "^2.3.0"

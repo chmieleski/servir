@@ -23,18 +23,42 @@ const BaseEnvSchema = z.object({
   APP_VERSION: z.string().trim().min(1).default('0.0.0'),
   NEXT_PUBLIC_API_BASE_URL: z.string().url().default('http://localhost:3000/api/v1'),
   EXPO_PUBLIC_API_BASE_URL: z.string().url().default('http://localhost:3000/api/v1'),
-  DATABASE_HOST: z.string().trim().min(1).default('localhost'),
-  DATABASE_PORT: z.coerce.number().int().min(1).max(65535).default(5432),
-  DATABASE_NAME: z.string().trim().min(1).default('servir'),
-  DATABASE_USER: z.string().trim().min(1).default('servir'),
-  DATABASE_PASSWORD: z.string().trim().min(1).default('servir'),
-  DATABASE_SSL: EnvBooleanSchema.optional(),
+  DATABASE_URL: z
+    .string()
+    .trim()
+    .min(1)
+    .default('postgresql://servir:servir@localhost:5432/servir?schema=public'),
+  CLERK_PUBLISHABLE_KEY: z.string().trim().min(1).default('pk_test_placeholder'),
+  CLERK_SECRET_KEY: z.string().trim().min(1).default('sk_test_placeholder'),
+  CLERK_AUTHORIZED_PARTIES: z
+    .string()
+    .trim()
+    .min(1)
+    .default('http://localhost:3000,http://localhost:3001'),
+  AUTH_E2E_TEST_MODE: EnvBooleanSchema.default(false),
+  AUTH_E2E_TEST_SECRET: z.string().trim().min(1).default('servir-e2e-secret'),
+  CLERK_WEBHOOK_SIGNING_SECRET: z
+    .string()
+    .trim()
+    .min(1)
+    .default('whsec_replace_me'),
+  BILLING_ENFORCEMENT_ENABLED: EnvBooleanSchema.default(true),
+  BILLING_ALLOWED_PATHS: z
+    .string()
+    .trim()
+    .min(1)
+    .default(
+      '/api/v1/health,/api/docs,/api/v1/auth/me,/api/v1/org-requests,/api/v1/platform,/api/v1/organizations,/api/v1/billing,/api/v1/internal/webhooks/clerk',
+    ),
+  BILLING_ACTIVE_STATUSES: z
+    .string()
+    .trim()
+    .min(1)
+    .default('active,trialing'),
+  BILLING_INACTIVE_GRACE_DAYS: z.coerce.number().int().min(0).default(0),
 });
 
-export const EnvSchema = BaseEnvSchema.transform((env) => ({
-  ...env,
-  DATABASE_SSL: env.DATABASE_SSL ?? env.NODE_ENV === 'production',
-}));
+export const EnvSchema = BaseEnvSchema;
 
 export const ClientEnvSchema = BaseEnvSchema.pick({
   NEXT_PUBLIC_API_BASE_URL: true,

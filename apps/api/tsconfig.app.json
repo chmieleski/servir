@@ -32,6 +32,21 @@
     },
     {
       "path": "../../libs/server/core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/server/core-billing/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/server/core-auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/server/data-access/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/server/feature-access/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/server/feature-billing/tsconfig.lib.json"
     }
   ]
 }

@@ -8,6 +8,11 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml nx.json tsconfig.base.json tsconfig.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY libs/server/core/package.json libs/server/core/package.json
+COPY libs/server/core-billing/package.json libs/server/core-billing/package.json
+COPY libs/server/core-auth/package.json libs/server/core-auth/package.json
+COPY libs/server/data-access/package.json libs/server/data-access/package.json
+COPY libs/server/feature-access/package.json libs/server/feature-access/package.json
+COPY libs/server/feature-billing/package.json libs/server/feature-billing/package.json
 COPY libs/server/feature-health/package.json libs/server/feature-health/package.json
 COPY libs/shared/config/package.json libs/shared/config/package.json
 COPY libs/shared/contracts/package.json libs/shared/contracts/package.json

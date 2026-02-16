@@ -1,6 +1,9 @@
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
 const { join } = require('path');
 
+process.env.NX_TASK_TARGET_PROJECT ??= '@servir/api';
+process.env.NX_TASK_TARGET_TARGET ??= 'build';
+
 module.exports = {
   output: {
     path: join(__dirname, 'dist'),
