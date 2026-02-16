@@ -21,7 +21,9 @@ async function bootstrap() {
     });
   }
 
-  app.setGlobalPrefix(apiPrefix);
+  if (apiPrefix.length > 0) {
+    app.setGlobalPrefix(apiPrefix);
+  }
 
   if (apiDocsEnabled) {
     const swaggerConfig = new DocumentBuilder()

@@ -1,0 +1,17 @@
+aws_region         = "us-east-1"
+project_name       = "servir"
+environment        = "prod"
+api_domain         = "api.example.com"
+letsencrypt_email  = "ops@example.com"
+api_root_volume_size_gb = 30
+api_cors_origin    = "https://servir.app"
+api_prefix         = ""
+api_docs_enabled   = true
+api_docs_path      = "docs"
+app_version        = "0.0.0"
+db_instance_class  = "db.t4g.micro"
+db_allocated_storage_gb = 20
+db_name            = "servir"
+db_master_username = "servir"
+db_port            = 5432
+db_ssl             = true

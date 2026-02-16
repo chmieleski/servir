@@ -1,0 +1,402 @@
+name: Deploy API
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  TF_DIR: infra/terraform/api
+  TF_IN_AUTOMATION: true
+  TF_VAR_aws_region: us-east-1
+  TF_VAR_project_name: servir
+  TF_VAR_environment: prod
+  TF_VAR_api_domain: ${{ vars.API_DOMAIN || 'api.example.com' }}
+  TF_VAR_letsencrypt_email: ${{ vars.LETSENCRYPT_EMAIL || 'ops@example.com' }}
+  TF_VAR_api_prefix: ${{ vars.API_PREFIX }}
+  TF_VAR_api_docs_enabled: ${{ vars.API_DOCS_ENABLED || 'true' }}
+  TF_VAR_api_docs_path: ${{ vars.API_DOCS_PATH || 'docs' }}
+  TF_VAR_api_cors_origin: ${{ vars.API_CORS_ORIGIN || '*' }}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.resolve.outputs.source_sha }}
+      ci_success: ${{ steps.resolve.outputs.ci_success }}
+    steps:
+      - name: Resolve deployment source revision
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          DISPATCH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            SOURCE_SHA="${DISPATCH_SHA}"
+            CI_SUCCESS="true"
+            echo "Manual dispatch detected. Using source revision ${SOURCE_SHA}."
+          else
+            SOURCE_SHA="${WORKFLOW_RUN_SHA}"
+            if [ "${WORKFLOW_RUN_CONCLUSION}" = "success" ]; then
+              CI_SUCCESS="true"
+              echo "CI concluded with success for revision ${SOURCE_SHA}."
+            else
+              CI_SUCCESS="false"
+              echo "CI conclusion was '${WORKFLOW_RUN_CONCLUSION}'. Deployment jobs will be skipped."
+            fi
+          fi
+
+          echo "source_sha=${SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "ci_success=${CI_SUCCESS}" >> "$GITHUB_OUTPUT"
+
+  changes:
+    runs-on: ubuntu-latest
+    needs: preflight
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.preflight.outputs.ci_success == 'true' }}
+    outputs:
+      should_deploy: ${{ steps.detect.outputs.should_deploy }}
+      changed_files: ${{ steps.detect.outputs.changed_files }}
+    steps:
+      - name: Checkout source revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+          fetch-depth: 2
+
+      - name: Detect API deployment scope changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_SHA: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch forces deploy regardless of changed files."
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "changed_files<<EOF"
+              echo "manual-dispatch"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git rev-parse "${SOURCE_SHA}^" >/dev/null 2>&1; then
+            CHANGED_FILES="$(git diff --name-only "${SOURCE_SHA}^" "${SOURCE_SHA}")"
+          else
+            CHANGED_FILES="$(git show --pretty='' --name-only "${SOURCE_SHA}")"
+          fi
+
+          echo "Changed files:"
+          if [ -n "${CHANGED_FILES}" ]; then
+            echo "${CHANGED_FILES}"
+          else
+            echo "(none)"
+          fi
+
+          SHOULD_DEPLOY="false"
+
+          while IFS= read -r file; do
+            [ -z "${file}" ] && continue
+            case "${file}" in
+              apps/api/*|libs/server/*|libs/shared/config/*|libs/shared/contracts/*|infra/terraform/api/*|package.json|pnpm-lock.yaml|nx.json|tsconfig.base.json|.github/workflows/deploy-api.yml)
+                SHOULD_DEPLOY="true"
+                break
+                ;;
+            esac
+          done <<< "${CHANGED_FILES}"
+
+          if [ "${SHOULD_DEPLOY}" = "true" ]; then
+            echo "Deploy scope matched API changes."
+          else
+            echo "No API deploy-scope changes found. Workflow will skip deployment."
+          fi
+
+          echo "should_deploy=${SHOULD_DEPLOY}" >> "$GITHUB_OUTPUT"
+          {
+            echo "changed_files<<EOF"
+            echo "${CHANGED_FILES}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  terraform-apply:
+    runs-on: ubuntu-latest
+    needs:
+      - preflight
+      - changes
+    if: ${{ needs.changes.result == 'success' && needs.changes.outputs.should_deploy == 'true' }}
+    env:
+      TF_VAR_app_version: ${{ needs.preflight.outputs.source_sha }}
+    outputs:
+      instance_id: ${{ steps.outputs.outputs.instance_id }}
+      ecr_repo: ${{ steps.outputs.outputs.ecr_repo }}
+      healthcheck_url: ${{ steps.outputs.outputs.healthcheck_url }}
+      db_host_param: ${{ steps.outputs.outputs.db_host_param }}
+      db_port_param: ${{ steps.outputs.outputs.db_port_param }}
+      db_name_param: ${{ steps.outputs.outputs.db_name_param }}
+      db_user_param: ${{ steps.outputs.outputs.db_user_param }}
+      db_password_param: ${{ steps.outputs.outputs.db_password_param }}
+      db_ssl_param: ${{ steps.outputs.outputs.db_ssl_param }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+
+      - name: Validate required repository configuration
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_STATE_LOCK_TABLE: ${{ vars.TF_STATE_LOCK_TABLE }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for key in AWS_ROLE_ARN TF_STATE_BUCKET TF_STATE_LOCK_TABLE; do
+            if [ -z "${!key:-}" ]; then
+              echo "::error::Missing required repository setting '${key}'."
+              missing=1
+            fi
+          done
+          if [ "${missing}" -ne 0 ]; then
+            echo "Configure repository settings in GitHub: Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_STATE_LOCK_TABLE: ${{ vars.TF_STATE_LOCK_TABLE }}
+          TF_STATE_KEY: ${{ vars.TF_STATE_KEY || 'api/prod/terraform.tfstate' }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=${TF_STATE_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -input=false -auto-approve
+
+      - name: Capture Terraform outputs
+        id: outputs
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          echo "instance_id=$(terraform output -raw api_instance_id)" >> "$GITHUB_OUTPUT"
+          echo "ecr_repo=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+          echo "healthcheck_url=$(terraform output -raw healthcheck_url)" >> "$GITHUB_OUTPUT"
+          echo "db_host_param=$(terraform output -raw db_host_parameter_name)" >> "$GITHUB_OUTPUT"
+          echo "db_port_param=$(terraform output -raw db_port_parameter_name)" >> "$GITHUB_OUTPUT"
+          echo "db_name_param=$(terraform output -raw db_name_parameter_name)" >> "$GITHUB_OUTPUT"
+          echo "db_user_param=$(terraform output -raw db_user_parameter_name)" >> "$GITHUB_OUTPUT"
+          echo "db_password_param=$(terraform output -raw db_password_parameter_name)" >> "$GITHUB_OUTPUT"
+          echo "db_ssl_param=$(terraform output -raw db_ssl_parameter_name)" >> "$GITHUB_OUTPUT"
+
+  build-push-image:
+    runs-on: ubuntu-latest
+    needs:
+      - preflight
+      - changes
+      - terraform-apply
+    if: ${{ needs.terraform-apply.result == 'success' }}
+    outputs:
+      image_uri: ${{ steps.image.outputs.image_uri }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image (ARM64)
+        id: image
+        env:
+          ECR_REPO: ${{ needs.terraform-apply.outputs.ecr_repo }}
+          SOURCE_SHA: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          IMAGE_TAG="${SOURCE_SHA:0:12}-${GITHUB_RUN_ATTEMPT}"
+          IMAGE_URI="${ECR_REPO}:${IMAGE_TAG}"
+          docker buildx build \
+            --platform linux/arm64 \
+            --file apps/api/Dockerfile \
+            --tag "${IMAGE_URI}" \
+            --push .
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs:
+      - preflight
+      - changes
+      - terraform-apply
+      - build-push-image
+    if: ${{ needs.build-push-image.result == 'success' }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy on EC2 via SSM
+        env:
+          INSTANCE_ID: ${{ needs.terraform-apply.outputs.instance_id }}
+          IMAGE_URI: ${{ needs.build-push-image.outputs.image_uri }}
+          DB_HOST_PARAM: ${{ needs.terraform-apply.outputs.db_host_param }}
+          DB_PORT_PARAM: ${{ needs.terraform-apply.outputs.db_port_param }}
+          DB_NAME_PARAM: ${{ needs.terraform-apply.outputs.db_name_param }}
+          DB_USER_PARAM: ${{ needs.terraform-apply.outputs.db_user_param }}
+          DB_PASSWORD_PARAM: ${{ needs.terraform-apply.outputs.db_password_param }}
+          DB_SSL_PARAM: ${{ needs.terraform-apply.outputs.db_ssl_param }}
+          API_DOMAIN: ${{ vars.API_DOMAIN || 'api.example.com' }}
+          API_PREFIX: ${{ vars.API_PREFIX }}
+          API_DOCS_ENABLED: ${{ vars.API_DOCS_ENABLED || 'true' }}
+          API_DOCS_PATH: ${{ vars.API_DOCS_PATH || 'docs' }}
+          API_CORS_ORIGIN: ${{ vars.API_CORS_ORIGIN || '*' }}
+          APP_VERSION: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+
+          DEPLOY_SCRIPT=$(cat <<SCRIPT
+          set -euo pipefail
+
+          REGION="${AWS_REGION}"
+          IMAGE_URI="${IMAGE_URI}"
+          API_DOMAIN="${API_DOMAIN}"
+          API_PREFIX="${API_PREFIX}"
+          API_DOCS_ENABLED="${API_DOCS_ENABLED}"
+          API_DOCS_PATH="${API_DOCS_PATH}"
+          API_CORS_ORIGIN="${API_CORS_ORIGIN}"
+          APP_VERSION="${APP_VERSION}"
+          DB_HOST_PARAM="${DB_HOST_PARAM}"
+          DB_PORT_PARAM="${DB_PORT_PARAM}"
+          DB_NAME_PARAM="${DB_NAME_PARAM}"
+          DB_USER_PARAM="${DB_USER_PARAM}"
+          DB_PASSWORD_PARAM="${DB_PASSWORD_PARAM}"
+          DB_SSL_PARAM="${DB_SSL_PARAM}"
+
+          DB_HOST=\$(aws ssm get-parameter --name "\${DB_HOST_PARAM}" --region "\${REGION}" --query 'Parameter.Value' --output text)
+          DB_PORT=\$(aws ssm get-parameter --name "\${DB_PORT_PARAM}" --region "\${REGION}" --query 'Parameter.Value' --output text)
+          DB_NAME=\$(aws ssm get-parameter --name "\${DB_NAME_PARAM}" --region "\${REGION}" --query 'Parameter.Value' --output text)
+          DB_USER=\$(aws ssm get-parameter --name "\${DB_USER_PARAM}" --region "\${REGION}" --query 'Parameter.Value' --output text)
+          DB_PASSWORD=\$(aws ssm get-parameter --name "\${DB_PASSWORD_PARAM}" --region "\${REGION}" --with-decryption --query 'Parameter.Value' --output text)
+          DB_SSL=\$(aws ssm get-parameter --name "\${DB_SSL_PARAM}" --region "\${REGION}" --query 'Parameter.Value' --output text)
+          API_PREFIX_TRIMMED="\${API_PREFIX#/}"
+          API_PREFIX_TRIMMED="\${API_PREFIX_TRIMMED%/}"
+          if [ -n "\${API_PREFIX_TRIMMED}" ]; then
+            API_BASE_URL="https://\${API_DOMAIN}/\${API_PREFIX_TRIMMED}"
+          else
+            API_BASE_URL="https://\${API_DOMAIN}"
+          fi
+
+          mkdir -p /opt/servir
+
+          cat >/opt/servir/.env <<EOF
+          API_IMAGE=\${IMAGE_URI}
+          EOF
+
+          {
+            printf '%s\n' "NODE_ENV=production"
+            printf '%s\n' "HOST=0.0.0.0"
+            printf '%s\n' "PORT=3000"
+            printf '%s\n' "API_PREFIX=\${API_PREFIX_TRIMMED}"
+            printf '%s\n' "API_DOCS_ENABLED=\${API_DOCS_ENABLED}"
+            printf '%s\n' "API_DOCS_PATH=\${API_DOCS_PATH}"
+            printf '%s\n' "CORS_ENABLED=true"
+            printf '%s\n' "CORS_ORIGIN=\${API_CORS_ORIGIN}"
+            printf '%s\n' "APP_VERSION=\${APP_VERSION}"
+            printf '%s\n' "NEXT_PUBLIC_API_BASE_URL=\${API_BASE_URL}"
+            printf '%s\n' "EXPO_PUBLIC_API_BASE_URL=\${API_BASE_URL}"
+            printf '%s\n' "DATABASE_HOST=\${DB_HOST}"
+            printf '%s\n' "DATABASE_PORT=\${DB_PORT}"
+            printf '%s\n' "DATABASE_NAME=\${DB_NAME}"
+            printf '%s\n' "DATABASE_USER=\${DB_USER}"
+            printf '%s\n' "DATABASE_PASSWORD=\${DB_PASSWORD}"
+            printf '%s\n' "DATABASE_SSL=\${DB_SSL}"
+          } >/opt/servir/api.env
+
+          docker compose -f /opt/servir/docker-compose.yml --env-file /opt/servir/.env pull
+          docker compose -f /opt/servir/docker-compose.yml --env-file /opt/servir/.env up -d --remove-orphans
+          SCRIPT
+          )
+
+          jq -n --arg script "$DEPLOY_SCRIPT" '{commands: [$script]}' >/tmp/ssm-parameters.json
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${INSTANCE_ID}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy API image ${IMAGE_URI}" \
+            --parameters file:///tmp/ssm-parameters.json \
+            --query "Command.CommandId" \
+            --output text \
+            --region "${AWS_REGION}")
+
+          if ! aws ssm wait command-executed \
+            --command-id "${COMMAND_ID}" \
+            --instance-id "${INSTANCE_ID}" \
+            --region "${AWS_REGION}"; then
+            echo "SSM command did not reach Success state."
+          fi
+
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "${COMMAND_ID}" \
+            --instance-id "${INSTANCE_ID}" \
+            --region "${AWS_REGION}" \
+            --query "Status" \
+            --output text)
+
+          if [ "${STATUS}" != "Success" ]; then
+            aws ssm get-command-invocation \
+              --command-id "${COMMAND_ID}" \
+              --instance-id "${INSTANCE_ID}" \
+              --region "${AWS_REGION}" \
+              --query "StandardErrorContent" \
+              --output text
+            exit 1
+          fi
+
+      - name: Smoke test health endpoint
+        run: |
+          URL="${{ needs.terraform-apply.outputs.healthcheck_url }}"
+          echo "Checking ${URL}"
+          curl --fail --show-error --silent --retry 20 --retry-delay 5 "${URL}" >/dev/null

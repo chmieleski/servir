@@ -1,0 +1,5 @@
+bucket         = "servir-prod-terraform-state"
+key            = "api/prod/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "servir-prod-terraform-locks"
+encrypt        = true

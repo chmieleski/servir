@@ -19,7 +19,9 @@ export class AppConfigService {
   }
 
   getApiPrefix(): ApiValidatedConfig['app']['apiPrefix'] {
-    return this.configService.get('app.apiPrefix', { infer: true });
+    const apiPrefix = this.configService.get('app.apiPrefix', { infer: true });
+
+    return this.normalizePath(apiPrefix);
   }
 
   isApiDocsEnabled(): ApiValidatedConfig['app']['apiDocsEnabled'] {
@@ -49,11 +51,17 @@ export class AppConfigService {
   }
 
   getAppUrl(host = this.getHost()): string {
-    return `http://${this.resolvePublicHost(host)}:${this.getPort()}/${this.getApiPrefix()}`;
+    return this.appendPath(
+      `http://${this.resolvePublicHost(host)}:${this.getPort()}`,
+      this.getApiPrefix(),
+    );
   }
 
   getApiDocsUrl(host = this.getHost()): string {
-    return `http://${this.resolvePublicHost(host)}:${this.getPort()}/${this.getApiDocsPath()}`;
+    return this.appendPath(
+      `http://${this.resolvePublicHost(host)}:${this.getPort()}`,
+      this.getApiDocsPath(),
+    );
   }
 
   private resolvePublicHost(host: string): string {
@@ -62,5 +70,19 @@ export class AppConfigService {
     }
 
     return host;
+  }
+
+  private appendPath(baseUrl: string, path: string): string {
+    const normalizedPath = this.normalizePath(path);
+
+    if (normalizedPath.length === 0) {
+      return baseUrl;
+    }
+
+    return `${baseUrl}/${normalizedPath}`;
+  }
+
+  private normalizePath(path: string): string {
+    return path.trim().replace(/^\/+|\/+$/g, '');
   }
 }

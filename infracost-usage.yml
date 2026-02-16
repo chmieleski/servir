@@ -1,0 +1,11 @@
+version: 0.1
+
+resource_usage:
+  aws_instance.api:
+    operating_system: linux
+    monthly_hrs: 730
+
+  aws_db_instance.postgres:
+    storage_gb: 20
+    backup_retention_period_days: 1
+    monthly_additional_backup_storage_gb: 2

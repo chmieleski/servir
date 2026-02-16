@@ -11,11 +11,11 @@ const EnvBooleanSchema = z.preprocess(
   }),
 );
 
-export const EnvSchema = z.object({
+const BaseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().trim().min(1).default('0.0.0.0'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  API_PREFIX: z.string().trim().min(1).default('api/v1'),
+  API_PREFIX: z.string().trim().default('api/v1'),
   API_DOCS_ENABLED: EnvBooleanSchema.default(true),
   API_DOCS_PATH: z.string().trim().min(1).default('api/docs'),
   CORS_ENABLED: EnvBooleanSchema.default(true),
@@ -23,13 +23,24 @@ export const EnvSchema = z.object({
   APP_VERSION: z.string().trim().min(1).default('0.0.0'),
   NEXT_PUBLIC_API_BASE_URL: z.string().url().default('http://localhost:3000/api/v1'),
   EXPO_PUBLIC_API_BASE_URL: z.string().url().default('http://localhost:3000/api/v1'),
+  DATABASE_HOST: z.string().trim().min(1).default('localhost'),
+  DATABASE_PORT: z.coerce.number().int().min(1).max(65535).default(5432),
+  DATABASE_NAME: z.string().trim().min(1).default('servir'),
+  DATABASE_USER: z.string().trim().min(1).default('servir'),
+  DATABASE_PASSWORD: z.string().trim().min(1).default('servir'),
+  DATABASE_SSL: EnvBooleanSchema.optional(),
 });
 
-export const ClientEnvSchema = EnvSchema.pick({
+export const EnvSchema = BaseEnvSchema.transform((env) => ({
+  ...env,
+  DATABASE_SSL: env.DATABASE_SSL ?? env.NODE_ENV === 'production',
+}));
+
+export const ClientEnvSchema = BaseEnvSchema.pick({
   NEXT_PUBLIC_API_BASE_URL: true,
 });
 
-export const ExpoEnvSchema = EnvSchema.pick({
+export const ExpoEnvSchema = BaseEnvSchema.pick({
   EXPO_PUBLIC_API_BASE_URL: true,
 });
 

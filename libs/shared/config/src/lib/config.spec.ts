@@ -15,6 +15,11 @@ describe('config', () => {
       APP_VERSION: '1.0.0',
       NEXT_PUBLIC_API_BASE_URL: 'http://localhost:4100/api/v1',
       EXPO_PUBLIC_API_BASE_URL: 'http://localhost:4100/api/v1',
+      DATABASE_HOST: 'db.example.internal',
+      DATABASE_PORT: '5432',
+      DATABASE_NAME: 'servir',
+      DATABASE_USER: 'servir',
+      DATABASE_PASSWORD: 'secret',
     });
 
     expect(env.PORT).toBe(4100);
@@ -24,6 +29,7 @@ describe('config', () => {
     expect(env.CORS_ENABLED).toBe(true);
     expect(env.CORS_ORIGIN).toBe('http://localhost:3000,https://servir.app');
     expect(env.EXPO_PUBLIC_API_BASE_URL).toBe('http://localhost:4100/api/v1');
+    expect(env.DATABASE_SSL).toBe(true);
   });
 
   it('should fail on invalid env', () => {
@@ -37,5 +43,13 @@ describe('config', () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it('should allow empty API_PREFIX for subdomain-based routing', () => {
+    const env = parseEnv({
+      API_PREFIX: '',
+    });
+
+    expect(env.API_PREFIX).toBe('');
   });
 });

@@ -1,0 +1,73 @@
+#!/bin/bash
+set -euo pipefail
+
+dnf update -y
+dnf install -y docker docker-compose-plugin
+
+systemctl enable docker
+systemctl start docker
+
+mkdir -p /opt/servir
+
+cat >/opt/servir/docker-compose.yml <<'EOF'
+services:
+  api:
+    image: $${API_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - /opt/servir/api.env
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/servir/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
+EOF
+
+cat >/opt/servir/Caddyfile <<EOF
+{
+  email ${letsencrypt_email}
+}
+
+${api_domain} {
+  encode zstd gzip
+  reverse_proxy api:3000
+}
+EOF
+
+cat >/opt/servir/.env <<'EOF'
+API_IMAGE=public.ecr.aws/docker/library/busybox:latest
+EOF
+
+cat >/opt/servir/api.env <<'EOF'
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=3000
+API_PREFIX=api/v1
+API_DOCS_ENABLED=true
+API_DOCS_PATH=api/docs
+CORS_ENABLED=true
+CORS_ORIGIN=*
+APP_VERSION=0.0.0
+NEXT_PUBLIC_API_BASE_URL=https://example.com/api/v1
+EXPO_PUBLIC_API_BASE_URL=https://example.com/api/v1
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=servir
+DATABASE_USER=servir
+DATABASE_PASSWORD=servir
+DATABASE_SSL=true
+EOF
