@@ -347,6 +347,8 @@ resource "aws_iam_instance_profile" "api" {
   role = aws_iam_role.api.name
 }
 
+# Temporary Infracost EC2.9 exception tracked as ec2-9-aws-instance-api-public-ip.
+# See docs/infra/infracost-policy-exceptions.md and docs/infra/risk-tracker.md.
 resource "aws_instance" "api" {
   ami                         = data.aws_ami.api_host.id
   instance_type               = var.api_instance_type
