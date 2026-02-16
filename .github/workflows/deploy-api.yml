@@ -355,8 +355,17 @@ jobs:
             printf '%s\n' "DATABASE_SSL=\${DB_SSL}"
           } >/opt/servir/api.env
 
-          docker compose -f /opt/servir/docker-compose.yml --env-file /opt/servir/.env pull
-          docker compose -f /opt/servir/docker-compose.yml --env-file /opt/servir/.env up -d --remove-orphans
+          if docker compose version >/dev/null 2>&1; then
+            docker compose -f /opt/servir/docker-compose.yml --env-file /opt/servir/.env pull
+            docker compose -f /opt/servir/docker-compose.yml --env-file /opt/servir/.env up -d --remove-orphans
+          elif command -v docker-compose >/dev/null 2>&1; then
+            docker-compose -f /opt/servir/docker-compose.yml --env-file /opt/servir/.env pull
+            docker-compose -f /opt/servir/docker-compose.yml --env-file /opt/servir/.env up -d --remove-orphans
+          else
+            echo "Neither docker compose nor docker-compose is available on the instance." >&2
+            docker --version
+            exit 1
+          fi
           SCRIPT
           )
 
