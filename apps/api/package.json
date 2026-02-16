@@ -9,6 +9,10 @@
     ],
     "targets": {
       "build": {
+        "dependsOn": [
+          "^build",
+          "prisma-generate"
+        ],
         "executor": "nx:run-commands",
         "options": {
           "command": "webpack-cli build",
@@ -23,6 +27,24 @@
               "--node-env=development"
             ]
           }
+        }
+      },
+      "prisma-generate": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node tools/scripts/prisma-generate.mjs"
+        }
+      },
+      "prisma-migrate-dev": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "pnpm prisma migrate dev --schema apps/api/prisma/schema.prisma"
+        }
+      },
+      "prisma-migrate-deploy": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "pnpm prisma migrate deploy --schema apps/api/prisma/schema.prisma"
         }
       },
       "prune-lockfile": {
@@ -83,6 +105,12 @@
         "options": {
           "passWithNoTests": true
         }
+      },
+      "docs-lint": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "pnpm docs:lint"
+        }
       }
     }
   },
@@ -92,8 +120,15 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/swagger": "^11.2.6",
+    "@prisma/client": "6.19.0",
     "@servir/config": "workspace:*",
+    "@servir/core-billing": "workspace:*",
     "@servir/core": "workspace:*",
+    "@servir/core-auth": "workspace:*",
+    "@servir/data-access": "workspace:*",
+    "@servir/feature-access": "workspace:*",
+    "@servir/feature-billing": "workspace:*",
+    "@servir/feature-agent-planning": "workspace:*",
     "@servir/feature-health": "workspace:*",
     "nestjs-zod": "^5.1.1",
     "reflect-metadata": "^0.1.13",
@@ -101,6 +136,7 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@nestjs/testing": "^11.0.0"
+    "@nestjs/testing": "^11.0.0",
+    "prisma": "6.19.0"
   }
 }

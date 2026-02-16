@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationRequestStatus {
+  pending
+  approved
+  denied
+  failed
+}
+
+enum BillingStatus {
+  none
+  trialing
+  active
+  past_due
+  unpaid
+  incomplete
+  canceled
+}
+
+enum BillingWebhookEventStatus {
+  processed
+  ignored
+  failed
+}
+
+model OrganizationRequest {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  requesterUserId    String
+  requesterEmail     String?
+  organizationName   String
+  organizationSlug   String
+  justification      String
+  status             OrganizationRequestStatus @default(pending)
+  decisionReason     String?
+  decisionedByUserId String?
+  decisionedAt       DateTime?
+  clerkOrganizationId String?
+  failureCode        String?
+  failureMessage     String?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  @@index([requesterUserId, status])
+  @@index([status, createdAt])
+  @@index([organizationSlug])
+}
+
+model OrganizationBilling {
+  id                 String       @id @default(uuid()) @db.Uuid
+  organizationId     String       @unique
+  provider           String       @default("clerk")
+  status             BillingStatus @default(none)
+  planId             String?
+  planSlug           String?
+  subscriptionId     String?
+  customerId         String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  trialEndsAt        DateTime?
+  cancelAtPeriodEnd  Boolean      @default(false)
+  lastEventId        String?
+  lastEventAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([status])
+  @@index([updatedAt])
+}
+
+model BillingWebhookEvent {
+  id           String                  @id @default(uuid()) @db.Uuid
+  provider     String                  @default("clerk")
+  eventId      String
+  eventType    String
+  status       BillingWebhookEventStatus
+  failureReason String?
+  occurredAt   DateTime?
+  receivedAt   DateTime                @default(now())
+  processedAt  DateTime?
+  payloadJson  Json
+  headersJson  Json?
+
+  @@unique([provider, eventId])
+  @@index([eventType])
+  @@index([status])
+  @@index([receivedAt])
+}

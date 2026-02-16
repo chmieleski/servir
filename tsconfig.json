@@ -35,6 +35,21 @@
     },
     {
       "path": "./apps/expo"
+    },
+    {
+      "path": "./libs/server/feature-access"
+    },
+    {
+      "path": "./libs/server/data-access"
+    },
+    {
+      "path": "./libs/server/core-auth"
+    },
+    {
+      "path": "./libs/server/core-billing"
+    },
+    {
+      "path": "./libs/server/feature-billing"
     }
   ]
 }

@@ -20,6 +20,9 @@
     },
     {
       "path": "../../shared/config/tsconfig.lib.json"
+    },
+    {
+      "path": "../core-auth/tsconfig.lib.json"
     }
   ],
   "exclude": [

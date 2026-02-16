@@ -6,7 +6,9 @@ import { AppConfigService } from './modules/config';
 import { AppModule } from './modules/app/app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
   const appConfig = app.get(AppConfigService);
   const host = appConfig.getHost();
   const apiPrefix = appConfig.getApiPrefix();

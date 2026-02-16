@@ -10,10 +10,12 @@
     "build": "pnpm nx run-many -t build --all --parallel=3",
     "test": "pnpm nx run-many -t test --all --parallel=3",
     "lint": "pnpm nx run-many -t lint --all --parallel=3",
-    "check": "pnpm nx run-many -t lint,test,build --all --parallel=3"
+    "check": "pnpm nx run-many -t lint,test,build --all --parallel=3",
+    "docs:lint": "pnpm ts-node tools/docs-validate-risks.ts"
   },
   "private": true,
   "dependencies": {
+    "@clerk/backend": "^2.31.0",
     "@expo/metro-config": "~54.0.9",
     "@expo/metro-runtime": "~6.1.2",
     "@nestjs/common": "^11.0.0",
@@ -21,6 +23,7 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/swagger": "^11.2.6",
+    "@prisma/client": "^6.19.0",
     "axios": "^1.6.0",
     "expo": "~54.0.0",
     "expo-splash-screen": "~31.0.11",
@@ -95,6 +98,7 @@
     "metro-resolver": "~0.83.0",
     "nx": "22.5.0",
     "prettier": "~3.6.2",
+    "prisma": "^6.19.0",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
     "tslib": "^2.3.0",
